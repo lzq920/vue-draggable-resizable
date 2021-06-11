@@ -204,9 +204,15 @@ export default {
       default: false
     },
     scale: {
-      type: Number,
+      type: [Number, Array],
       default: 1,
-      validator: (val) => val > 0
+      validator: (val) => {
+        if (typeof val === 'number') {
+          return val > 0
+        }
+
+        return val.length === 2 && val[0] > 0 && val[1] > 0
+      }
     },
     onDragStart: {
       type: Function,
@@ -254,6 +260,8 @@ export default {
       enabled: this.active,
       resizing: false,
       dragging: false,
+      dragEnable: false,
+      resizeEnable: false,
       zIndex: this.z
     }
   },
@@ -285,6 +293,10 @@ export default {
 
     this.right = this.parentWidth - this.width - this.left
     this.bottom = this.parentHeight - this.height - this.top
+
+    if (this.active) {
+      this.$emit('activated')
+    }
 
     addEvent(document.documentElement, 'mousedown', this.deselect)
     addEvent(document.documentElement, 'touchend touchcancel', this.deselect)
@@ -378,7 +390,7 @@ export default {
         }
 
         if (this.draggable) {
-          this.dragging = true
+          this.dragEnable = true
         }
 
         this.mouseClickPosition.mouseX = e.touches ? e.touches[0].pageX : e.pageX
@@ -450,7 +462,7 @@ export default {
         this.handle = handle
       }
 
-      this.resizing = true
+      this.resizeEnable = true
 
       this.mouseClickPosition.mouseX = e.touches ? e.touches[0].pageX : e.pageX
       this.mouseClickPosition.mouseY = e.touches ? e.touches[0].pageY : e.pageY
@@ -569,7 +581,7 @@ export default {
     move (e) {
       if (this.resizing) {
         this.handleResize(e)
-      } else if (this.dragging) {
+      } else if (this.dragEnable) {
         this.handleDrag(e)
       }
     },
@@ -600,9 +612,11 @@ export default {
       this.bottom = bottom
 
       this.$emit('dragging', this.left, this.top)
+      this.dragging = true
     },
     moveHorizontally (val) {
-      const [deltaX, _] = snapToGrid(this.grid, val, this.top, this.scale)
+      // should calculate with scale 1.
+      const [deltaX, _] = snapToGrid(this.grid, val, this.top, 1)
 
       const left = restrictToBounds(deltaX, this.bounds.minLeft, this.bounds.maxLeft)
 
@@ -610,7 +624,8 @@ export default {
       this.right = this.parentWidth - this.width - left
     },
     moveVertically (val) {
-      const [_, deltaY] = snapToGrid(this.grid, this.left, val, this.scale)
+      // should calculate with scale 1.
+      const [_, deltaY] = snapToGrid(this.grid, this.left, val, 1)
 
       const top = restrictToBounds(deltaY, this.bounds.minTop, this.bounds.maxTop)
 
@@ -699,9 +714,11 @@ export default {
       this.height = height
 
       this.$emit('resizing', this.left, this.top, this.width, this.height)
+      this.resizing = true
     },
     changeWidth (val) {
-      const [newWidth, _] = snapToGrid(this.grid, val, 0, this.scale)
+      // should calculate with scale 1.
+      const [newWidth, _] = snapToGrid(this.grid, val, 0, 1)
 
       let right = restrictToBounds(
         (this.parentWidth - newWidth - this.left),
@@ -723,7 +740,8 @@ export default {
       this.height = height
     },
     changeHeight (val) {
-      const [_, newHeight] = snapToGrid(this.grid, 0, val, this.scale)
+      // should calculate with scale 1.
+      const [_, newHeight] = snapToGrid(this.grid, 0, val, 1)
 
       let bottom = restrictToBounds(
         (this.parentHeight - newHeight - this.top),
@@ -749,10 +767,14 @@ export default {
 
       this.resetBoundsAndMouseState()
 
+      this.dragEnable = false
+      this.resizeEnable = false
+
       if (this.resizing) {
         this.resizing = false
         this.$emit('resizestop', this.left, this.top, this.width, this.height)
       }
+
       if (this.dragging) {
         this.dragging = false
         this.$emit('dragstop', this.left, this.top)

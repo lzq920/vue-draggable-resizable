@@ -1,6 +1,7 @@
 import VueDraggableResizable from '@/components/vue-draggable-resizable'
 import { mount } from '@vue/test-utils'
 import syn from 'syn'
+import div from '../../div'
 
 let wrapper
 
@@ -16,7 +17,7 @@ describe('`parent` prop', function () {
     }
 
     wrapper = mount(ParentComponent, {
-      attachToDocument: true
+      attachTo: div()
     })
 
     wrapper.vm.$nextTick(() => {
@@ -33,7 +34,9 @@ describe('`parent` prop', function () {
           to: { pageX: fromX + 50, pageY: fromY + 50 },
           duration: 10
         },
-        function () {
+        async function () {
+          await wrapper.vm.$nextTick()
+
           expect($el.style.transform).to.equal('translate(50px, 50px)')
 
           done()
@@ -53,7 +56,7 @@ describe('`parent` prop', function () {
     }
 
     wrapper = mount(ParentComponent, {
-      attachToDocument: true
+      attachTo: div()
     })
 
     wrapper.vm.$nextTick(() => {
@@ -70,7 +73,9 @@ describe('`parent` prop', function () {
           to: { pageX: fromX + 50, pageY: fromY + 50 },
           duration: 10
         },
-        function () {
+        async function () {
+          await wrapper.vm.$nextTick()
+
           expect($el.style.transform).to.equal('translate(0px, 0px)')
 
           done()
@@ -90,7 +95,7 @@ describe('`parent` prop', function () {
     }
 
     wrapper = mount(ParentComponent, {
-      attachToDocument: true
+      attachTo: div()
     })
 
     wrapper.vm.$nextTick(() => {
@@ -107,7 +112,9 @@ describe('`parent` prop', function () {
           to: { pageX: fromX + 50, pageY: fromY + 50 },
           duration: 10
         },
-        function () {
+        async function () {
+          await wrapper.vm.$nextTick()
+
           expect($el.style.transform).to.equal('translate(0px, 0px)')
           expect($el.style.width).to.equal('250px')
           expect($el.style.height).to.equal('250px')
@@ -129,7 +136,7 @@ describe('`parent` prop', function () {
     }
 
     wrapper = mount(ParentComponent, {
-      attachToDocument: true
+      attachTo: div()
     })
 
     wrapper.vm.$nextTick(() => {
@@ -146,12 +153,73 @@ describe('`parent` prop', function () {
           to: { pageX: fromX + 50, pageY: fromY + 50 },
           duration: 10
         },
-        function () {
+        async function () {
+          await wrapper.vm.$nextTick()
+
           expect($el.style.transform).to.equal('translate(0px, 0px)')
           expect($el.style.width).to.equal('200px')
           expect($el.style.height).to.equal('200px')
 
           done()
+        }
+      )
+    })
+  })
+
+  it('should resize correctly after the parent changes size to bigger values', function (done) {
+    const ParentComponent = {
+      template: `<div class="parent" style="width: 250px; height: 250px;">
+        <vue-draggable-resizable :w="200" :h="200" :parent="true" :active="true"></vue-draggable-resizable>
+      </div>`,
+      components: {
+        VueDraggableResizable
+      }
+    }
+
+    wrapper = mount(ParentComponent, {
+      attachTo: div()
+    })
+
+    wrapper.vm.$nextTick(() => {
+      const $parent = wrapper.vm.$el
+      const $el = wrapper.vm.$children[0].$el
+
+      const rect = $el.querySelector('div.handle-br').getBoundingClientRect()
+      const fromX = rect.left
+      const fromY = rect.top
+
+      syn.drag(
+        $el.querySelector('div.handle-br'),
+        {
+          from: { pageX: fromX, pageY: fromY },
+          to: { pageX: fromX + 50, pageY: fromY + 50 },
+          duration: 10
+        },
+        async function () {
+          await wrapper.vm.$nextTick()
+
+          $parent.style.width = '300px'
+          $parent.style.height = '300px'
+
+          window.dispatchEvent(new Event('resize'))
+
+          syn.drag(
+            $el.querySelector('div.handle-br'),
+            {
+              from: { pageX: fromX + 50, pageY: fromY + 50 },
+              to: { pageX: fromX + 100, pageY: fromY + 100 },
+              duration: 10
+            },
+            async function () {
+              await wrapper.vm.$nextTick()
+
+              expect($el.style.transform).to.equal('translate(0px, 0px)')
+              expect($el.style.width).to.equal('300px')
+              expect($el.style.height).to.equal('300px')
+
+              done()
+            }
+          )
         }
       )
     })
